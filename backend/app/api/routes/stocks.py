@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 from app.api import deps
 from app.models.stock import StockPrice
-from app.schemas.stock import Stock, StockAnalytics
+from app.schemas.stock import Stock, StockAnalytics, StockSummary, CompanyList
 from app.services.stock_service import StockService
 from app.services.data_processing import DataProcessingService
 import pandas as pd
@@ -15,6 +15,66 @@ import io
 plt.switch_backend('Agg')
 
 router = APIRouter()
+
+@router.get("/companies", response_model=CompanyList)
+def get_companies(
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Get list of all available companies.
+    """
+    companies = StockService.get_all_companies(db)
+    return {"companies": companies}
+
+@router.get("/data/{ticker}", response_model=List[Stock])
+def get_stock_data_last_30_days(
+    ticker: str,
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Get last 30 days of stock data.
+    """
+    stocks = StockService.get_stock_data(db, ticker, days=30)
+    if not stocks:
+        raise HTTPException(status_code=404, detail="Stock data not found")
+    return stocks
+
+@router.get("/summary/{ticker}", response_model=StockSummary)
+def get_stock_summary(
+    ticker: str,
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Get 52-week high, low, and average close.
+    """
+    summary = StockService.get_stock_summary(db, ticker)
+    if not summary:
+        raise HTTPException(status_code=404, detail="Stock summary not found")
+    
+    # Add ticker to response to satisfy model
+    summary["ticker"] = ticker
+    return summary
+
+@router.get("/compare")
+def compare_stocks(
+    symbol1: str,
+    symbol2: str,
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Compare two stocks' performance (last 30 days).
+    """
+    # this is a bonus, keeping it simple
+    stock1 = StockService.get_stock_summary(db, symbol1)
+    stock2 = StockService.get_stock_summary(db, symbol2)
+    
+    if not stock1 or not stock2:
+        raise HTTPException(status_code=404, detail="One or both stocks not found")
+        
+    return {
+        symbol1: stock1,
+        symbol2: stock2
+    }
 
 @router.get("/{ticker}/chart", response_class=StreamingResponse)
 def get_stock_chart(

@@ -33,3 +33,12 @@ class StockAnalytics(BaseModel):
     ma_7: float
     high_52w: float
     low_52w: float
+
+class StockSummary(BaseModel):
+    ticker: str
+    high_52w: float
+    low_52w: float
+    avg_close_52w: float
+
+class CompanyList(BaseModel):
+    companies: List[str]
