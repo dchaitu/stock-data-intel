@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -27,14 +27,20 @@ def get_companies(
     return {"companies": companies}
 
 @router.get("/data/{ticker}", response_model=List[Stock])
-def get_stock_data_last_30_days(
+def get_stock_data(
     ticker: str,
+    days: int = 365,
     db: Session = Depends(deps.get_db)
 ):
     """
-    Get last 30 days of stock data.
+    Get stock data. Fetches from yfinance if not present. Default 365 days.
     """
-    stocks = StockService.get_stock_data(db, ticker, days=30)
+    stocks = StockService.get_stock_data(db, ticker, days=days)
+    if not stocks:
+        # Lazy load
+        if StockService.ingest_ticker_data(db, ticker):
+            stocks = StockService.get_stock_data(db, ticker, days=days)
+    
     if not stocks:
         raise HTTPException(status_code=404, detail="Stock data not found")
     return stocks
@@ -133,53 +139,16 @@ def get_stock_chart(
 @router.post("/{ticker}/ingest", status_code=202)
 def ingest_stock_data(
     ticker: str, 
-    background_tasks: BackgroundTasks,
     db: Session = Depends(deps.get_db)
 ):
     """
     Trigger data ingestion for a ticker in the background.
     """
-    # Verify ticker valid by fetching small amount of data? 
-    # Or just spawn background task. 
-    # Let's do it synchronously for the "mini" platform to show immediate results, 
-    # or use background task but I'll implement logic here for simplicity of demonstration.
-    # We will do it synchronously for this demo to ensure it completes before user checks.
+    success = StockService.ingest_ticker_data(db, ticker)
+    if not success:
+         raise HTTPException(status_code=404, detail="Ticker not found or no data")
     
-    # Check if data already exists? We can overwrite or append.
-    # For now, let's delete existing for this ticker and reload.
-    existing = db.query(StockPrice).filter(StockPrice.ticker == ticker).first()
-    if existing:
-        db.query(StockPrice).filter(StockPrice.ticker == ticker).delete()
-        db.commit()
-
-    df = StockService.fetch_stock_data(ticker)
-    if df is None:
-        raise HTTPException(status_code=404, detail="Ticker not found or no data")
-    
-    processed_df = DataProcessingService.process_stock_data(df)
-    
-    # Bulk insert
-    stock_objects = []
-    for _, row in processed_df.iterrows():
-        stock_obj = StockPrice(
-            ticker=ticker,
-            date=row['Date'],
-            open=row['Open'],
-            high=row['High'],
-            low=row['Low'],
-            close=row['Close'],
-            volume=row['Volume'],
-            daily_return=row.get('Daily_Return'),
-            ma_7=row.get('MA_7'),
-            high_52w=row.get('High_52W'),
-            low_52w=row.get('Low_52W')
-        )
-        stock_objects.append(stock_obj)
-    
-    db.add_all(stock_objects)
-    db.commit()
-    
-    return {"message": f"Successfully ingested {len(stock_objects)} records for {ticker}"}
+    return {"message": f"Successfully ingested records for {ticker}"}
 
 @router.get("/{ticker}", response_model=List[Stock])
 def get_stock_history(

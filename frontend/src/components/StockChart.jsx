@@ -86,7 +86,7 @@ const StockChart = ({ ticker }) => {
             },
             title: {
                 display: true,
-                text: `${ticker} Stock Price (Last 30 Days)`,
+                text: `${ticker} Stock Price (Last 1 Year)`,
                 color: 'white',
                 font: { size: 16 }
             },
@@ -102,6 +102,8 @@ const StockChart = ({ ticker }) => {
             }
         }
     };
+
+    console.log("chartData ", chartData);
 
     return (
         <div className="flex flex-col space-y-6 h-full p-6">

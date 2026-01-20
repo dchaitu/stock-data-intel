@@ -40,5 +40,8 @@ class StockSummary(BaseModel):
     low_52w: float
     avg_close_52w: float
 
+class CompanyInfo(BaseModel):
+    ticker: str
+
 class CompanyList(BaseModel):
-    companies: List[str]
+    companies: List[CompanyInfo]

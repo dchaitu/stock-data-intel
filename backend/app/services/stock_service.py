@@ -30,14 +30,14 @@ class StockService:
             print(f"Error fetching data for {ticker}: {e}")
             return None
     @staticmethod
-    def get_all_companies(db_session) -> list[str]:
+    def get_all_companies(db_session) -> list[dict]:
         """
-        Returns a list of all available companies in the database.
+        Returns a list of all available companies in the database with their names.
         """
         from app.models.stock import StockPrice
-        # Perform distinct query
+        # Perform distinct query on ticker
         companies = db_session.query(StockPrice.ticker).distinct().all()
-        return [c[0] for c in companies]
+        return [{"ticker": c[0]} for c in companies]
 
     @staticmethod
     def get_stock_data(db_session, ticker: str, days: int = 30):
@@ -86,3 +86,51 @@ class StockService:
             "low_52w": stats.low_52w,
             "avg_close_52w": stats.avg_close
         }
+
+    @staticmethod
+    def ingest_ticker_data(db_session, ticker: str) -> bool:
+        """
+        Fetches data from yfinance, processes it, and saves/updates it in the database.
+        Returns True if successful, False otherwise.
+        """
+        from app.models.stock import StockPrice
+        from app.services.data_processing import DataProcessingService
+        
+        # 1. Fetch
+        df = StockService.fetch_stock_data(ticker)
+        if df is None or df.empty:
+            return False
+            
+        # 2. Process
+        processed_df = DataProcessingService.process_stock_data(df)
+        if processed_df.empty:
+            return False
+            
+        # 3. Save (Replace existing for simplicity)
+        try:
+            db_session.query(StockPrice).filter(StockPrice.ticker == ticker).delete()
+            
+            stock_objects = []
+            for _, row in processed_df.iterrows():
+                stock_obj = StockPrice(
+                    ticker=ticker,
+                    date=row['Date'],
+                    open=row['Open'],
+                    high=row['High'],
+                    low=row['Low'],
+                    close=row['Close'],
+                    volume=row['Volume'],
+                    daily_return=row.get('Daily_Return'),
+                    ma_7=row.get('MA_7'),
+                    high_52w=row.get('High_52W'),
+                    low_52w=row.get('Low_52W')
+                )
+                stock_objects.append(stock_obj)
+            
+            db_session.add_all(stock_objects)
+            db_session.commit()
+            return True
+        except Exception as e:
+            print(f"Error ingesting {ticker}: {e}")
+            db_session.rollback()
+            return False

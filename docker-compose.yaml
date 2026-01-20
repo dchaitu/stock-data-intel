@@ -1,0 +1,9 @@
+services:
+  backend:
+    build: backend
+    image: backend
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    container_name: backend-check
