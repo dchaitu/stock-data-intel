@@ -42,6 +42,7 @@ class StockSummary(BaseModel):
 
 class CompanyInfo(BaseModel):
     ticker: str
+    name: Optional[str] = None
 
 class CompanyList(BaseModel):
     companies: List[CompanyInfo]

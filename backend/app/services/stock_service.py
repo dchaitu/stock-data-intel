@@ -25,7 +25,18 @@ class StockService:
         """
         from app.models.stock import StockPrice
         companies = db_session.query(StockPrice.ticker).distinct().all()
-        return [{"ticker": c[0]} for c in companies]
+        
+        results = []
+        for c in companies:
+            ticker = c[0]
+            try:
+                stock = yf.Ticker(ticker)
+                name = stock.info.get("longName") or stock.info.get("shortName") or ticker
+            except Exception:
+                name = ticker
+            results.append({"ticker": ticker, "name": name})
+            
+        return results
 
     @staticmethod
     def get_stock_data(db_session, ticker: str, days: int = 30):
