@@ -58,6 +58,5 @@ def populate_stock_data(tickers):
     db.close()
 
 if __name__ == "__main__":
-    # Mix of NSE and US stocks
     tickers_to_fetch = ["RELIANCE.NS", "TCS.NS", "INFY.NS", "AAPL", "GOOGL", "MSFT"]
     populate_stock_data(tickers_to_fetch)

@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from app.core.config import settings
+import os
+
 
 # For SQLite (if needed for local testing without Postgres)
 SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"

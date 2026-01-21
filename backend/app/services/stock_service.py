@@ -5,16 +5,6 @@ from typing import Optional
 class StockService:
     @staticmethod
     def fetch_stock_data(ticker: str, period: str = "1y") -> Optional[pd.DataFrame]:
-        """
-        Fetches historical stock data for the given ticker.
-        
-        Args:
-            ticker: The stock ticker symbol (e.g., 'AAPL', 'RELIANCE.NS').
-            period: The data period to download (default '1y').
-            
-        Returns:
-            DataFrame containing stock data or None if failed.
-        """
         try:
             stock = yf.Ticker(ticker)
             df = stock.history(period=period)
@@ -23,7 +13,6 @@ class StockService:
                 print(f"No data found for {ticker}")
                 return None
             
-            # Reset index to make Date a column
             df = df.reset_index()
             return df
         except Exception as e:
@@ -35,7 +24,6 @@ class StockService:
         Returns a list of all available companies in the database with their names.
         """
         from app.models.stock import StockPrice
-        # Perform distinct query on ticker
         companies = db_session.query(StockPrice.ticker).distinct().all()
         return [{"ticker": c[0]} for c in companies]
 
